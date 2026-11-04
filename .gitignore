@@ -1,0 +1,42 @@
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ---------- Ambientes virtuais ----------
+.venv/
+venv/
+env/
+
+# ---------- Segredos e configuração local ----------
+.env
+.env.*
+!.env.example
+
+# ---------- Banco de dados local ----------
+*.sqlite3
+*.sqlite3-journal
+dados.json
+
+# ---------- Arquivos gerados pelo Django ----------
+staticfiles/
+
+# ---------- Uploads dos usuários ----------
+# (mantém só a imagem padrão do perfil, obrigatória para criar usuários)
+/media/profile_pics/*
+!/media/profile_pics/default.jpg
+
+# ---------- Logs ----------
+*.log
+
+# ---------- Editor / sistema ----------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---------- Backups ----------
+*.bak

@@ -36,6 +36,10 @@ def create_or_update_user_profile(sender, instance, created, **kwargs):
     - On first save (registration) -> creates the Profile automatically.
     - On every later save of the User -> makes sure the Profile is saved as well.
     """
+    # Durante o loaddata os objetos chegam com raw=True e já trazem o Profile
+    # no fixture; criar outro aqui causaria UNIQUE constraint em user_id.
+    if kwargs.get("raw"):
+        return
     if created:
         Profile.objects.create(user=instance)
     else:

@@ -1,187 +1,249 @@
-# 📝 Django Blog & User System
+# Django Blog & User System
 
-Aplicação web desenvolvida em **Python** com o framework **Django**, contando com um sistema de publicações (blog) e uma estrutura completa de autenticação e gerenciamento de usuários (cadastro, login, logout e recuperação de senha).
+Aplicação web em **Python** com **Django**, com um blog e um sistema de contas de usuário (cadastro, login, logout, perfil com foto e recuperação de senha por e-mail).
 
-![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
-![Django](https://img.shields.io/badge/Django-5.x-092E20?logo=django)
-![License](https://img.shields.io/badge/license-MIT-green)
-
----
-
-## 📌 Funcionalidades
-
-- 📰 Listagem e visualização de posts do blog
-- 👤 Cadastro, login e logout de usuários
-- 🔑 Fluxo completo de redefinição de senha (via e-mail)
-- 🛠️ Painel administrativo do Django para gestão de conteúdo e usuários
-- 🧪 Testes unitários para as apps `blog` e `users`
+![Python](https://img.shields.io/badge/Python-3.12%2B-blue)
+![Django](https://img.shields.io/badge/Django-6.1-092E20?logo=django)
 
 ---
 
-## 📂 Estrutura de Pastas e Arquivos
+## Funcionalidades
+
+- Página inicial e página "About" do blog (acesso restrito a usuários logados)
+- Cadastro, login e logout
+- Perfil do usuário com edição de e-mail, bio e foto (a imagem é reduzida para no máximo 400×400)
+- Recuperação de senha por e-mail (em desenvolvimento, o e-mail aparece no console)
+- Painel administrativo do Django com `Post`, `Comment`, `Tag` e `Profile`
+
+### Estado atual
+
+- A listagem da home usa uma lista fixa em `blog/views.py`. Os models `Post`, `Comment` e `Tag` existem e podem ser editados no admin, mas ainda não são lidos pelas views.
+- O backend renderiza páginas HTML com templates do Django. **Não há API JSON** (REST/GraphQL) por enquanto.
+- Os arquivos `tests.py` das apps ainda estão vazios.
+
+---
+
+## Stack
+
+| Tecnologia | Uso |
+|---|---|
+| Python 3.12+ | Linguagem (o Django 6.1 exige 3.12 ou superior) |
+| Django 6.1 | Framework web |
+| Pillow | Campos de imagem e redimensionamento da foto de perfil |
+| SQLite | Banco padrão fora do Docker |
+| PostgreSQL 17 | Banco usado no Docker Compose |
+| psycopg 3 | Driver do PostgreSQL |
+
+As dependências estão em `requirements.txt`.
+
+---
+
+## Estrutura
 
 ```text
-django_project/
-├── manage.py                   # Script CLI principal do Django
-├── db.sqlite3                  # Banco de dados SQLite padrão
-├── django_project/             # Configurações globais do projeto
-│   ├── __init__.py
-│   ├── asgi.py                 # Configuração para servidores ASGI
-│   ├── settings.py             # Configurações do projeto (apps, DB, middleware, etc.)
-│   ├── urls.py                 # Roteamento principal de URLs
-│   └── wsgi.py                 # Configuração para servidores WSGI
-├── blog/                       # Aplicação responsável pelo Blog
-│   ├── migrations/              # Histórico de migrações do banco
-│   │   └── 0001_initial.py
-│   ├── templates/blog/          # Templates HTML da aplicação Blog
-│   │   ├── about.html
-│   │   ├── base.html
-│   │   └── home.html
-│   ├── admin.py                 # Registro de modelos no Admin
-│   ├── apps.py                  # Configuração da app Blog
-│   ├── models.py                # Modelos de dados (ex: Posts)
-│   ├── tests.py                 # Testes unitários do Blog
-│   ├── urls.py                  # Roteamento interno de URLs do Blog
-│   └── views.py                 # Lógica das views (páginas e dados)
-└── users/                       # Aplicação responsável pelos Usuários
-    ├── migrations/               # Histórico de migrações do banco
-    ├── templates/users/          # Templates HTML da aplicação Users
-    │   ├── login.html
-    │   ├── logout.html
-    │   ├── password_reset.html
-    │   ├── password_reset_complete.html
-    │   ├── password_reset_confirm.html
-    │   ├── password_reset_done.html
-    │   ├── password_reset_email.html
-    │   └── register.html
-    ├── admin.py                  # Registro de perfis no Admin
-    ├── apps.py                   # Configuração da app Users
-    ├── forms.py                  # Formulários de registro e perfil
-    ├── models.py                 # Modelos de usuário/perfil
-    ├── tests.py                  # Testes unitários dos Usuários
-    └── views.py                  # Lógica de cadastro, login e perfil
+django-blog/
+├── README.md
+├── requirements.txt
+├── Dockerfile
+├── docker-compose.yml
+├── .env.example
+├── .dockerignore
+├── .gitignore
+├── .gitattributes
+└── django_project/
+    ├── manage.py
+    ├── django_project/          # configurações globais
+    │   ├── settings.py
+    │   ├── urls.py
+    │   ├── asgi.py
+    │   └── wsgi.py
+    ├── blog/                    # app do blog
+    │   ├── migrations/
+    │   ├── templates/blog/
+    │   ├── models.py            # Post, Comment, Tag
+    │   ├── views.py
+    │   └── urls.py
+    ├── users/                   # app de usuários
+    │   ├── migrations/
+    │   ├── templates/users/
+    │   ├── forms.py
+    │   ├── models.py            # Profile (1-para-1 com User)
+    │   └── views.py
+    └── media/
+        └── profile_pics/
+            └── default.jpg      # imagem padrão do perfil (obrigatória)
 ```
 
 ---
 
-## 🛠️ Requisitos Prévios
+## Início rápido com Docker
 
-Certifique-se de ter instalado em sua máquina:
+Sobe o Django e o PostgreSQL juntos.
 
-- **Python 3.10+** (recomendado 3.12 ou 3.13)
-- **Pip** (gerenciador de pacotes do Python)
-- **Git**
+```bash
+git clone <url-do-repositorio>
+cd django-blog
+
+# 1. Variáveis de ambiente
+cp .env.example .env            # PowerShell: Copy-Item .env.example .env
+# edite o .env e defina POSTGRES_PASSWORD (e, de preferência, DJANGO_SECRET_KEY)
+
+# 2. Suba os containers (as migrações rodam automaticamente)
+docker compose up --build
+
+# 3. Em outro terminal, crie o superusuário
+docker compose exec backend python manage.py createsuperuser
+```
+
+| Recurso | URL |
+|---|---|
+| Aplicação | http://localhost:8000/ |
+| Admin | http://localhost:8000/admin/ |
+
+Comandos úteis:
+
+```bash
+docker compose up -d                                   # segundo plano
+docker compose logs -f backend                         # logs (e-mails de reset aparecem aqui)
+docker compose exec backend python manage.py migrate   # aplicar migrações
+docker compose exec backend python manage.py test      # rodar testes
+docker compose exec backend python manage.py shell     # shell do Django
+docker compose stop                                    # parar
+docker compose down                                    # parar e remover containers
+docker compose down -v                                 # idem, apagando também o banco
+```
 
 ---
 
-## 💻 Passo a Passo para Executar Localmente
+## Início rápido sem Docker (SQLite)
 
-### 1. Clonar o repositório
-
-```bash
-git clone https://github.com/Lucas-Brandi/django.git
-cd django/django_project
-```
-
-### 2. Criar e ativar o ambiente virtual (venv)
-
-É recomendável isolar as dependências do projeto em um ambiente virtual.
-
-**Linux / macOS**
+Requer Python 3.12 ou superior.
 
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-```
+git clone <url-do-repositorio>
+cd django-blog
 
-**Windows (PowerShell)**
-
-```powershell
 python -m venv venv
-.\venv\Scripts\Activate.ps1
-```
+source venv/bin/activate          # Windows (PowerShell): .\venv\Scripts\Activate.ps1
 
-**Windows (CMD)**
-
-```cmd
-python -m venv venv
-venv\Scripts\activate.bat
-```
-
-### 3. Instalar as dependências
-
-```bash
-pip install django Pillow
-```
-
-> 💡 O pacote **Pillow** é necessário para manipulação de campos de imagem em modelos de usuário/perfil (`ImageField`).
-
-Se o projeto tiver um `requirements.txt`, prefira:
-
-```bash
 pip install -r requirements.txt
-```
 
-### 4. Configurar variáveis de ambiente (opcional, recomendado)
-
-Se o projeto usar `SECRET_KEY`, credenciais de e-mail (para o reset de senha) ou outras configurações sensíveis, crie um arquivo `.env` na raiz do projeto com base em um `.env.example`, e evite subir esses valores para o controle de versão.
-
-### 5. Executar as migrações do banco de dados
-
-```bash
+cd django_project
 python manage.py migrate
-```
-
-### 6. Criar um superusuário (administrador)
-
-```bash
 python manage.py createsuperuser
-```
-
-Siga as instruções no terminal para definir usuário, e-mail e senha.
-
-### 7. Iniciar o servidor de desenvolvimento
-
-```bash
 python manage.py runserver
 ```
 
-### 8. Acessar a aplicação
-
-| Recurso                  | URL                                      |
-|---------------------------|-------------------------------------------|
-| Aplicação                 | http://127.0.0.1:8000/                    |
-| Painel administrativo      | http://127.0.0.1:8000/admin/              |
+Sem a variável `POSTGRES_HOST`, o projeto usa o SQLite (`db.sqlite3`).
 
 ---
 
-## 🧪 Executando os Testes
+## Variáveis de ambiente
 
-Para rodar os testes unitários das aplicações `blog` e `users`:
+Definidas no `.env` (modelo em `.env.example`). Todas têm valor padrão para desenvolvimento.
+
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `DJANGO_SECRET_KEY` | chave de exemplo | Chave secreta. **Obrigatória** quando `DJANGO_DEBUG=false` |
+| `DJANGO_DEBUG` | `true` | Modo debug |
+| `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1,[::1]` | Hosts permitidos, separados por vírgula |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | vazio | Origens confiáveis (necessário atrás de HTTPS/proxy) |
+| `BACKEND_PORT` | `8000` | Porta no seu computador (Docker) |
+| `POSTGRES_DB` / `POSTGRES_USER` | `blog` | Nome do banco e usuário |
+| `POSTGRES_PASSWORD` | sem padrão | Senha do banco (obrigatória no Docker) |
+| `POSTGRES_HOST` | vazio | Quando definido, o Django usa PostgreSQL em vez de SQLite |
+
+Para gerar uma chave secreta:
 
 ```bash
+python -c "from django.core.management.utils import get_random_secret_key as k; print(k())"
+```
+
+Evite o caractere `$` na chave, porque o Docker Compose o interpreta como variável.
+
+---
+
+## Testes
+
+```bash
+cd django_project
 python manage.py test
 ```
 
-Para rodar os testes de uma app específica:
+Ainda não há testes escritos nas apps `blog` e `users`.
+
+---
+
+## Solução de problemas
+
+**`TemplateDoesNotExist: users/profile.html` ao abrir `/profile/` (Linux, macOS e Docker).**
+A view pede `users/profile.html`, mas o arquivo foi versionado como `Profile.html` (com P maiúsculo). O Windows ignora a diferença de maiúsculas; Linux e Docker, não. Renomeie o arquivo no Git (em duas etapas, porque o Windows não percebe a troca só de maiúscula):
 
 ```bash
-python manage.py test blog
-python manage.py test users
+git mv django_project/users/templates/users/Profile.html django_project/users/templates/users/tmp.html
+git mv django_project/users/templates/users/tmp.html django_project/users/templates/users/profile.html
 ```
 
+**`FileNotFoundError: ... media/profile_pics/default.jpg` ao criar um usuário.**
+O `Profile` precisa da imagem padrão. Mantenha o `django_project/media/profile_pics/default.jpg` no repositório (o `.gitignore` já o preserva).
+
+**`ImproperlyConfigured: Defina DJANGO_SECRET_KEY...`.**
+Com `DJANGO_DEBUG=false` é obrigatório definir `DJANGO_SECRET_KEY`.
+
+**Porta 8000 em uso.** Altere `BACKEND_PORT` no `.env`.
+
+**`password authentication failed` no Postgres após mudar a senha.**
+A senha só é aplicada na criação do volume. Para recomeçar, rode `docker compose down -v` (apaga os dados) e suba de novo.
+
+**Levar os dados do SQLite para o PostgreSQL.**
+Antes, ajuste o signal em `users/models.py`. Sem isso, o `loaddata` falha com `UNIQUE constraint failed: users_profile.user_id`, porque o signal cria um `Profile` para cada usuário carregado e entra em conflito com os perfis do arquivo. Adicione o guard no início da função:
+
+```python
+@receiver(post_save, sender=settings.AUTH_USER_MODEL)
+def create_or_update_user_profile(sender, instance, created, **kwargs):
+    if kwargs.get("raw"):
+        return  # carregando fixture (loaddata): não cria Profile automaticamente
+    if created:
+        Profile.objects.create(user=instance)
+    else:
+        Profile.objects.get_or_create(user=instance)
+        instance.profile.save()
+```
+
+No ambiente antigo (SQLite):
+
+```bash
+python manage.py dumpdata --natural-foreign --natural-primary -e contenttypes -e auth.Permission > dados.json
+```
+
+No Docker, depois de subir os containers e migrar:
+
+```bash
+docker compose cp dados.json backend:/app/django_project/dados.json
+docker compose exec backend python manage.py loaddata dados.json
+```
+
+As fotos de perfil não vão no `dados.json`: copie também os arquivos de `django_project/media/profile_pics/`.
+
+**E-mails de recuperação de senha não chegam.**
+O backend usa o e-mail por console. O conteúdo aparece em `docker compose logs backend` (ou no terminal do `runserver`).
+
 ---
 
-## 🤝 Contribuindo
+## Observações de segurança
 
-1. Faça um fork do projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/minha-feature`)
-3. Commit suas mudanças (`git commit -m 'Adiciona minha feature'`)
-4. Faça o push para a branch (`git push origin feature/minha-feature`)
-5. Abra um Pull Request
+- O `.gitignore` inclui `.env` e `*.sqlite3`. Se `db.sqlite3`, `__pycache__/` ou fotos de usuários já foram commitados, remova-os do índice sem apagar os arquivos locais:
+
+  ```bash
+  git rm -r --cached django_project/db.sqlite3 django_project/media/profile_pics/megumin_2.jpg
+  git rm -r --cached --ignore-unmatch "*/__pycache__/*"
+  ```
+
+- A `SECRET_KEY` antiga ficou no histórico do Git. Se o projeto for publicado, gere uma nova e use `DJANGO_SECRET_KEY`.
+- O setup deste repositório é para **desenvolvimento** (`runserver`). Para produção, use um servidor WSGI/ASGI (como o Gunicorn), `DJANGO_DEBUG=false`, `collectstatic` e um proxy como o nginx.
 
 ---
 
-## 📄 Licença
+## Licença
 
-Este projeto está sob a licença MIT. Sinta-se livre para usar, modificar e distribuir.
+MIT.
