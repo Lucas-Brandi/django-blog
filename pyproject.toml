@@ -1,0 +1,41 @@
+[tool.ruff]
+# Limite de linha padrão da comunidade Python/Django
+line-length = 120
+
+# Alvo da versão de sintaxe do Python (venv atual é 3.13)
+target-version = "py313"
+
+# Pastas que o Ruff deve ignorar completamente
+extend-exclude = [
+    "venv",
+    ".venv",
+    "**/migrations/**",
+]
+
+[tool.ruff.lint]
+# E/W = pycodestyle, F = Pyflakes (Flake8), I = isort
+select = ["E", "W", "F", "I"]
+
+[tool.ruff.lint.isort]
+# Trata os apps locais como first-party para ordenar os imports corretamente
+known-first-party = ["blog", "users", "config"]
+
+[tool.ruff.format]
+# Usa aspas duplas e indentação por espaços (padrão)
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+# Aponta para o módulo de settings dentro da pasta config
+DJANGO_SETTINGS_MODULE = "config.settings"
+
+# Padrões de descoberta de arquivos de teste
+python_files = ["test_*.py", "*_test.py", "tests.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+# Diretórios onde o pytest procura os testes
+testpaths = ["blog", "users"]
+
+# Opções padrão ao rodar o pytest
+addopts = "-v --reuse-db"

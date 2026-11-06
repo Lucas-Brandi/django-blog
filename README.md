@@ -34,7 +34,7 @@ Aplicação web em **Python** com **Django**, com um blog e um sistema de contas
 | PostgreSQL 17 | Banco usado no Docker Compose |
 | psycopg 3 | Driver do PostgreSQL |
 
-As dependências estão em `requirements.txt`.
+As dependências de produção estão em `requirements.txt`; as de desenvolvimento (Ruff e Pytest) em `requirements-dev.txt`.
 
 ---
 
@@ -43,35 +43,36 @@ As dependências estão em `requirements.txt`.
 ```text
 django-blog/
 ├── README.md
-├── requirements.txt
+├── requirements.txt             # dependências de produção
+├── requirements-dev.txt         # ferramentas de dev (ruff, pytest)
+├── pyproject.toml               # configuração do Ruff e do Pytest
 ├── Dockerfile
 ├── docker-compose.yml
 ├── .env.example
 ├── .dockerignore
 ├── .gitignore
 ├── .gitattributes
-└── django_project/
-    ├── manage.py
-    ├── django_project/          # configurações globais
-    │   ├── settings.py
-    │   ├── urls.py
-    │   ├── asgi.py
-    │   └── wsgi.py
-    ├── blog/                    # app do blog
-    │   ├── migrations/
-    │   ├── templates/blog/
-    │   ├── models.py            # Post, Comment, Tag
-    │   ├── views.py
-    │   └── urls.py
-    ├── users/                   # app de usuários
-    │   ├── migrations/
-    │   ├── templates/users/
-    │   ├── forms.py
-    │   ├── models.py            # Profile (1-para-1 com User)
-    │   └── views.py
-    └── media/
-        └── profile_pics/
-            └── default.jpg      # imagem padrão do perfil (obrigatória)
+├── manage.py
+├── config/                      # configurações globais
+│   ├── settings.py
+│   ├── urls.py
+│   ├── asgi.py
+│   └── wsgi.py
+├── blog/                        # app do blog
+│   ├── migrations/
+│   ├── templates/blog/
+│   ├── models.py                # Post, Comment, Tag
+│   ├── views.py
+│   └── urls.py
+├── users/                       # app de usuários
+│   ├── migrations/
+│   ├── templates/users/
+│   ├── forms.py
+│   ├── models.py                # Profile (1-para-1 com User)
+│   └── views.py
+└── media/
+    └── profile_pics/
+        └── default.jpg          # imagem padrão do perfil (obrigatória)
 ```
 
 ---
@@ -128,7 +129,6 @@ source venv/bin/activate          # Windows (PowerShell): .\venv\Scripts\Activat
 
 pip install -r requirements.txt
 
-cd django_project
 python manage.py migrate
 python manage.py createsuperuser
 python manage.py runserver
@@ -163,29 +163,46 @@ Evite o caractere `$` na chave, porque o Docker Compose o interpreta como variá
 
 ---
 
-## Testes
+## Qualidade de código e testes
+
+As ferramentas de desenvolvimento ficam em `requirements-dev.txt` (Ruff para lint/formatação e Pytest para testes). A configuração de ambas está no `pyproject.toml` na raiz.
+
+Instale as dependências de desenvolvimento (com o `venv` ativo):
 
 ```bash
-cd django_project
-python manage.py test
+pip install -r requirements-dev.txt
 ```
 
-Ainda não há testes escritos nas apps `blog` e `users`.
+### Lint e formatação (Ruff)
+
+```bash
+ruff check .          # checa o lint (não altera arquivos)
+ruff check --fix .    # corrige problemas automaticamente (imports, etc.)
+ruff format .         # formata o código
+```
+
+O Ruff ignora as pastas `venv` e as `migrations` e organiza os imports (isort) automaticamente.
+
+### Testes (Pytest)
+
+```bash
+pytest
+```
+
+O `pytest-django` usa `DJANGO_SETTINGS_MODULE = config.settings` e descobre arquivos nos formatos `test_*.py` e `*_test.py` (além do `tests.py` de cada app). Ainda não há testes escritos nas apps `blog` e `users`, então o `pytest` coleta 0 testes por enquanto.
+
+O comando nativo do Django também continua funcionando:
+
+```bash
+python manage.py test
+```
 
 ---
 
 ## Solução de problemas
 
-**`TemplateDoesNotExist: users/profile.html` ao abrir `/profile/` (Linux, macOS e Docker).**
-A view pede `users/profile.html`, mas o arquivo foi versionado como `Profile.html` (com P maiúsculo). O Windows ignora a diferença de maiúsculas; Linux e Docker, não. Renomeie o arquivo no Git (em duas etapas, porque o Windows não percebe a troca só de maiúscula):
-
-```bash
-git mv django_project/users/templates/users/Profile.html django_project/users/templates/users/tmp.html
-git mv django_project/users/templates/users/tmp.html django_project/users/templates/users/profile.html
-```
-
 **`FileNotFoundError: ... media/profile_pics/default.jpg` ao criar um usuário.**
-O `Profile` precisa da imagem padrão. Mantenha o `django_project/media/profile_pics/default.jpg` no repositório (o `.gitignore` já o preserva).
+O `Profile` precisa da imagem padrão. Mantenha o `media/profile_pics/default.jpg` no repositório (o `.gitignore` já o preserva).
 
 **`ImproperlyConfigured: Defina DJANGO_SECRET_KEY...`.**
 Com `DJANGO_DEBUG=false` é obrigatório definir `DJANGO_SECRET_KEY`.
@@ -219,11 +236,11 @@ python manage.py dumpdata --natural-foreign --natural-primary -e contenttypes -e
 No Docker, depois de subir os containers e migrar:
 
 ```bash
-docker compose cp dados.json backend:/app/django_project/dados.json
+docker compose cp dados.json backend:/app/dados.json
 docker compose exec backend python manage.py loaddata dados.json
 ```
 
-As fotos de perfil não vão no `dados.json`: copie também os arquivos de `django_project/media/profile_pics/`.
+As fotos de perfil não vão no `dados.json`: copie também os arquivos de `media/profile_pics/`.
 
 **E-mails de recuperação de senha não chegam.**
 O backend usa o e-mail por console. O conteúdo aparece em `docker compose logs backend` (ou no terminal do `runserver`).
@@ -235,7 +252,7 @@ O backend usa o e-mail por console. O conteúdo aparece em `docker compose logs 
 - O `.gitignore` inclui `.env` e `*.sqlite3`. Se `db.sqlite3`, `__pycache__/` ou fotos de usuários já foram commitados, remova-os do índice sem apagar os arquivos locais:
 
   ```bash
-  git rm -r --cached django_project/db.sqlite3 django_project/media/profile_pics/megumin_2.jpg
+  git rm -r --cached db.sqlite3 media/profile_pics/megumin_2.jpg
   git rm -r --cached --ignore-unmatch "*/__pycache__/*"
   ```
 

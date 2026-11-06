@@ -1,9 +1,8 @@
-from PIL import Image
-
 from django.conf import settings
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from PIL import Image
 
 
 class Profile(models.Model):
@@ -11,9 +10,7 @@ class Profile(models.Model):
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     bio = models.TextField(max_length=300, blank=True)
-    image = models.ImageField(
-        default="profile_pics/default.jpg", upload_to="profile_pics"
-    )
+    image = models.ImageField(default="profile_pics/default.jpg", upload_to="profile_pics")
 
     def __str__(self):
         return f"{self.user.username} Profile"

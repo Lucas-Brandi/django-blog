@@ -1,0 +1,10 @@
+# Dependências de desenvolvimento (lint + testes)
+# Instala também as de produção:
+-r requirements.txt
+
+# Linter e formatador
+ruff~=0.14.0
+
+# Testes
+pytest~=8.4.0
+pytest-django~=4.11.0
