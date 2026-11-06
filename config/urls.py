@@ -24,6 +24,8 @@ from users import views as user_views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # API REST (JSON) consumida pelo front React.
+    path("api/v1/", include("config.api_urls")),
     path("register/", user_views.register, name="register"),
     path("profile/", user_views.profile, name="profile"),
     path("login/", user_views.UserLoginView.as_view(), name="login"),

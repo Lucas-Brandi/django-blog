@@ -18,7 +18,7 @@ Aplicação web em **Python** com **Django**, com um blog e um sistema de contas
 ### Estado atual
 
 - A listagem da home usa uma lista fixa em `blog/views.py`. Os models `Post`, `Comment` e `Tag` existem e podem ser editados no admin, mas ainda não são lidos pelas views.
-- O backend renderiza páginas HTML com templates do Django. **Não há API JSON** (REST/GraphQL) por enquanto.
+- O backend renderiza páginas HTML com templates do Django e **também expõe uma API REST** (JSON) sob o prefixo `/api/v1/`, consumida pelo front React. A base da API (health check, CORS, paginação e formato de erro) já está no ar; os endpoints de dados chegam nas próximas milestones. As rotas HTML continuam funcionando.
 - Os arquivos `tests.py` das apps ainda estão vazios.
 
 ---
@@ -29,6 +29,8 @@ Aplicação web em **Python** com **Django**, com um blog e um sistema de contas
 |---|---|
 | Python 3.12+ | Linguagem (o Django 6.1 exige 3.12 ou superior) |
 | Django 6.1 | Framework web |
+| Django REST Framework | API REST (JSON) sob `/api/v1/` |
+| django-cors-headers | Libera o front React (CORS) a consumir a API |
 | Pillow | Campos de imagem e redimensionamento da foto de perfil |
 | SQLite | Banco padrão fora do Docker |
 | PostgreSQL 17 | Banco usado no Docker Compose |
@@ -55,7 +57,9 @@ django-blog/
 ├── manage.py
 ├── config/                      # configurações globais
 │   ├── settings.py
-│   ├── urls.py
+│   ├── urls.py                  # inclui o prefixo /api/v1/
+│   ├── api.py                   # health check + formato de erro da API
+│   ├── api_urls.py              # rotas da API v1
 │   ├── asgi.py
 │   └── wsgi.py
 ├── blog/                        # app do blog
@@ -148,6 +152,8 @@ Definidas no `.env` (modelo em `.env.example`). Todas têm valor padrão para de
 | `DJANGO_DEBUG` | `true` | Modo debug |
 | `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1,[::1]` | Hosts permitidos, separados por vírgula |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | vazio | Origens confiáveis (necessário atrás de HTTPS/proxy) |
+| `DJANGO_CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Origens autorizadas a consumir a API via navegador (CORS), separadas por vírgula |
+| `DJANGO_API_PAGE_SIZE` | `10` | Tamanho de página padrão da API (paginação) |
 | `BACKEND_PORT` | `8000` | Porta no seu computador (Docker) |
 | `POSTGRES_DB` / `POSTGRES_USER` | `blog` | Nome do banco e usuário |
 | `POSTGRES_PASSWORD` | sem padrão | Senha do banco (obrigatória no Docker) |
@@ -160,6 +166,31 @@ python -c "from django.core.management.utils import get_random_secret_key as k; 
 ```
 
 Evite o caractere `$` na chave, porque o Docker Compose o interpreta como variável.
+
+---
+
+## API REST
+
+O backend expõe uma API JSON sob o prefixo `/api/v1/`, pensada para o front React (Vite, em `http://localhost:5173`). A base está implementada com o Django REST Framework.
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/api/v1/health/` | Health check. Responde `200` com `{"status": "ok"}` |
+
+Características da base:
+
+- **CORS:** as origens autorizadas vêm de `DJANGO_CORS_ALLOWED_ORIGINS` (padrão `http://localhost:5173`). Requisições do front pelo navegador não tomam erro de CORS.
+- **Paginação:** padrão `PageNumberPagination`, com tamanho de página configurável via `DJANGO_API_PAGE_SIZE` (padrão `10`).
+- **Formato de erro consistente:** os erros da API são padronizados no envelope `{"error": {"status": <int>, "detail": <...>}}`.
+
+Teste rápido (com os containers de pé):
+
+```bash
+curl http://localhost:8000/api/v1/health/
+# {"status": "ok"}
+```
+
+As rotas HTML atuais continuam funcionando normalmente; a API é adicional.
 
 ---
 
