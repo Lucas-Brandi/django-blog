@@ -52,12 +52,18 @@ ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,[::1]")
 # Necessário apenas quando o site é servido por HTTPS/proxy (ex.: https://meusite.com)
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 
+# Origens autorizadas a consumir a API via navegador (CORS). O front React
+# roda por padrão em http://localhost:5173 (Vite).
+CORS_ALLOWED_ORIGINS = env_list("DJANGO_CORS_ALLOWED_ORIGINS", "http://localhost:5173")
+
 
 # Application definition
 
 INSTALLED_APPS = [
     "blog.apps.BlogConfig",
     "users.apps.UsersConfig",
+    "rest_framework",
+    "corsheaders",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -69,6 +75,10 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    # CorsMiddleware precisa vir antes do CommonMiddleware para adicionar os
+    # cabeçalhos de CORS (e responder aos preflights) antes de qualquer
+    # redirecionamento feito pelo CommonMiddleware.
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -174,4 +184,28 @@ MAILERS = {
     "default": {
         "BACKEND": "django.core.mail.backends.console.EmailBackend",
     },
+}
+
+
+# Django REST Framework
+# https://www.django-rest-framework.org/api-guide/settings/
+
+
+def env_int(name, default):
+    """Lê uma variável de ambiente inteira (usa o padrão se ausente/inválida)."""
+    value = os.environ.get(name)
+    if value is None or value.strip() == "":
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
+REST_FRAMEWORK = {
+    # Paginação padrão: tamanho de página configurável via ambiente.
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": env_int("DJANGO_API_PAGE_SIZE", 10),
+    # Formato de erro consistente para toda a API.
+    "EXCEPTION_HANDLER": "config.api.exception_handler",
 }
