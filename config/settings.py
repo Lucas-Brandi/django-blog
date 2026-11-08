@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -63,6 +64,7 @@ INSTALLED_APPS = [
     "blog.apps.BlogConfig",
     "users.apps.UsersConfig",
     "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "django.contrib.admin",
     "django.contrib.auth",
@@ -178,13 +180,24 @@ LOGIN_REDIRECT_URL = "blog-home"
 
 
 # Email
-# https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
-
+# https://docs.djangoproject.com/en/6.1/topics/email/
+#
+# O Django 6.1 substitui EMAIL_BACKEND pela configuração MAILERS. Em
+# desenvolvimento o e-mail é impresso no console (o link de reset de senha
+# aparece em `docker compose logs backend` ou no terminal do runserver).
 MAILERS = {
     "default": {
-        "BACKEND": "django.core.mail.backends.console.EmailBackend",
+        "BACKEND": os.environ.get(
+            "DJANGO_EMAIL_BACKEND",
+            "django.core.mail.backends.console.EmailBackend",
+        ),
     },
 }
+DEFAULT_FROM_EMAIL = os.environ.get("DJANGO_DEFAULT_FROM_EMAIL", "no-reply@django-blog.local")
+
+# URL base do front React. Usada para montar o link do e-mail de reset de senha:
+#   ${FRONTEND_URL}/password-reset/confirm/<uid>/<token>
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 
 
 # Django REST Framework
@@ -208,4 +221,26 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": env_int("DJANGO_API_PAGE_SIZE", 10),
     # Formato de erro consistente para toda a API.
     "EXCEPTION_HANDLER": "config.api.exception_handler",
+    # Autenticação via JWT (Bearer). A sessão fica disponível para o admin/browsable API.
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ),
+    # Rate limiting (throttling). Os escopos "login" e "password_reset" protegem
+    # os endpoints sensíveis contra brute force e enumeração de contas.
+    "DEFAULT_THROTTLE_CLASSES": ("rest_framework.throttling.ScopedRateThrottle",),
+    "DEFAULT_THROTTLE_RATES": {
+        "login": os.environ.get("DJANGO_THROTTLE_LOGIN", "5/min"),
+        "password_reset": os.environ.get("DJANGO_THROTTLE_PASSWORD_RESET", "5/min"),
+    },
+}
+
+# Simple JWT
+# https://django-rest-framework-simplejwt.readthedocs.io/
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=env_int("DJANGO_JWT_ACCESS_MINUTES", 30)),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=env_int("DJANGO_JWT_REFRESH_DAYS", 1)),
+    # Rotaciona o refresh a cada uso e coloca o antigo na blacklist (logout seguro).
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
 }

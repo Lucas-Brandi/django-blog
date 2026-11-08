@@ -30,6 +30,7 @@ Aplicação web em **Python** com **Django**, com um blog e um sistema de contas
 | Python 3.12+ | Linguagem (o Django 6.1 exige 3.12 ou superior) |
 | Django 6.1 | Framework web |
 | Django REST Framework | API REST (JSON) sob `/api/v1/` |
+| djangorestframework-simplejwt | Autenticação JWT (login, refresh, logout com blacklist) |
 | django-cors-headers | Libera o front React (CORS) a consumir a API |
 | Pillow | Campos de imagem e redimensionamento da foto de perfil |
 | SQLite | Banco padrão fora do Docker |
@@ -154,6 +155,13 @@ Definidas no `.env` (modelo em `.env.example`). Todas têm valor padrão para de
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | vazio | Origens confiáveis (necessário atrás de HTTPS/proxy) |
 | `DJANGO_CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Origens autorizadas a consumir a API via navegador (CORS), separadas por vírgula |
 | `DJANGO_API_PAGE_SIZE` | `10` | Tamanho de página padrão da API (paginação) |
+| `FRONTEND_URL` | `http://localhost:5173` | URL base do front, usada no link do e-mail de reset de senha |
+| `DJANGO_JWT_ACCESS_MINUTES` | `30` | Tempo de vida do token de acesso (minutos) |
+| `DJANGO_JWT_REFRESH_DAYS` | `1` | Tempo de vida do token de refresh (dias) |
+| `DJANGO_THROTTLE_LOGIN` | `5/min` | Limite de requisições no login |
+| `DJANGO_THROTTLE_PASSWORD_RESET` | `5/min` | Limite de requisições no reset de senha |
+| `DJANGO_EMAIL_BACKEND` | console | Backend de e-mail (padrão: console, em dev) |
+| `DJANGO_DEFAULT_FROM_EMAIL` | `no-reply@django-blog.local` | Remetente padrão dos e-mails |
 | `BACKEND_PORT` | `8000` | Porta no seu computador (Docker) |
 | `POSTGRES_DB` / `POSTGRES_USER` | `blog` | Nome do banco e usuário |
 | `POSTGRES_PASSWORD` | sem padrão | Senha do banco (obrigatória no Docker) |
@@ -176,6 +184,19 @@ O backend expõe uma API JSON sob o prefixo `/api/v1/`, pensada para o front Rea
 | Método | Rota | Descrição |
 |---|---|---|
 | `GET` | `/api/v1/health/` | Health check. Responde `200` com `{"status": "ok"}` |
+| `POST` | `/api/v1/auth/register/` | Cadastro (`username`, `email`, `password`, `password2`). O `Profile` é criado pelo signal |
+| `POST` | `/api/v1/auth/login/` | Login. Retorna o par de tokens JWT (`access` + `refresh`). Com limite de requisições |
+| `POST` | `/api/v1/auth/refresh/` | Renova o `access` a partir do `refresh` (rotação + blacklist do refresh antigo) |
+| `POST` | `/api/v1/auth/logout/` | Revoga o `refresh` informado (blacklist). Exige `Authorization: Bearer <access>` |
+| `POST` | `/api/v1/auth/password-reset/` | Envia e-mail de redefinição. Resposta igual exista ou não a conta. Com limite de requisições |
+| `POST` | `/api/v1/auth/password-reset/confirm/` | Redefine a senha com `uid` + `token` + `new_password`/`new_password2` |
+
+### Autenticação (JWT)
+
+A API usa **JSON Web Tokens** (via `djangorestframework-simplejwt`). O login devolve um `access` (curta duração) e um `refresh` (longa duração). Envie o `access` no cabeçalho `Authorization: Bearer <access>` nas rotas protegidas. O `refresh` renova o `access` em `/api/v1/auth/refresh/`; a cada renovação o refresh antigo entra na _blacklist_ (`token_blacklist`), e o logout faz o mesmo — por isso um token revogado ou expirado é rejeitado com `401`.
+
+O e-mail de reset aponta para `${FRONTEND_URL}/password-reset/confirm/<uid>/<token>`. Em desenvolvimento o e-mail aparece no console (`docker compose logs backend`).
+
 
 Características da base:
 
