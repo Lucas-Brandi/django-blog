@@ -9,4 +9,5 @@ app_name = "api-v1"
 urlpatterns = [
     path("health/", api.health, name="health"),
     path("auth/", include("users.api.urls")),
+    path("users/", include("users.api.profile_urls")),
 ]

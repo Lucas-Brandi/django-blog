@@ -175,6 +175,45 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# Media storage (uploads dos usuários)
+# https://docs.djangoproject.com/en/6.1/ref/settings/#storages
+#
+# Desenvolvimento: filesystem local (MEDIA_ROOT/MEDIA_URL acima).
+# Produção: Cloudflare R2 (API S3-compatível) via django-storages, ativado por
+# DJANGO_USE_R2=true. A lógica de negócio não muda: tudo passa pela Storage API.
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
+USE_R2 = env_bool("DJANGO_USE_R2", False)
+if USE_R2:
+    # Credenciais e parâmetros vêm só do ambiente; nada fica no código.
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "access_key": os.environ.get("R2_ACCESS_KEY_ID"),
+            "secret_key": os.environ.get("R2_SECRET_ACCESS_KEY"),
+            "bucket_name": os.environ.get("R2_BUCKET_NAME"),
+            "endpoint_url": os.environ.get("R2_ENDPOINT_URL"),
+            # Domínio personalizado (ex.: media.seusite.com) para servir URLs
+            # públicas e absolutas sem assinatura. Opcional.
+            "custom_domain": os.environ.get("R2_CUSTOM_DOMAIN") or None,
+            # Avatares são públicos: sem querystring de assinatura na URL.
+            "querystring_auth": False,
+            # R2 não suporta ACLs no estilo S3.
+            "default_acl": None,
+            # Não sobrescrever silenciosamente: deixa o Storage gerar nome único
+            # e evita corrida entre usuários com o mesmo nome de arquivo.
+            "file_overwrite": False,
+            "region_name": os.environ.get("R2_REGION", "auto"),
+        },
+    }
+
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "blog-home"
 
@@ -213,6 +252,10 @@ def env_int(name, default):
         return int(value)
     except ValueError:
         return default
+
+
+# Limite de tamanho (bytes) para a imagem de perfil enviada pela API.
+PROFILE_IMAGE_MAX_BYTES = env_int("DJANGO_PROFILE_IMAGE_MAX_BYTES", 2 * 1024 * 1024)
 
 
 REST_FRAMEWORK = {
