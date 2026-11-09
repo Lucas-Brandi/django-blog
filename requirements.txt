@@ -5,3 +5,6 @@ djangorestframework-simplejwt~=5.5.0
 django-cors-headers~=4.9.0
 Pillow~=13.0
 psycopg[binary]~=3.3
+# Armazenamento de mídia em produção (Cloudflare R2 via API S3).
+django-storages~=1.14.4
+boto3~=1.35

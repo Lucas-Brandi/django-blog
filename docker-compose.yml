@@ -34,6 +34,14 @@ services:
       DJANGO_THROTTLE_PASSWORD_RESET: ${DJANGO_THROTTLE_PASSWORD_RESET:-5/min}
       DJANGO_EMAIL_BACKEND: ${DJANGO_EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}
       DJANGO_DEFAULT_FROM_EMAIL: ${DJANGO_DEFAULT_FROM_EMAIL:-no-reply@django-blog.local}
+      DJANGO_PROFILE_IMAGE_MAX_BYTES: ${DJANGO_PROFILE_IMAGE_MAX_BYTES:-2097152}
+      DJANGO_USE_R2: ${DJANGO_USE_R2:-false}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_BUCKET_NAME: ${R2_BUCKET_NAME:-}
+      R2_ENDPOINT_URL: ${R2_ENDPOINT_URL:-}
+      R2_CUSTOM_DOMAIN: ${R2_CUSTOM_DOMAIN:-}
+      R2_REGION: ${R2_REGION:-auto}
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"
       POSTGRES_DB: ${POSTGRES_DB:-blog}
@@ -43,6 +51,9 @@ services:
       - type: bind
         source: .
         target: /app
+      # Volume nomeado para a mídia local: as imagens sobrevivem à recriação
+      # dos containers (em produção o R2 assume esse papel).
+      - media:/app/media
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     depends_on:
@@ -51,3 +62,4 @@ services:
 
 volumes:
   pgdata:
+  media:
