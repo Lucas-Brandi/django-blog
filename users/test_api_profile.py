@@ -272,6 +272,8 @@ def test_image_upload_works_with_local_storage(auth_client, user, tmp_path, sett
     )
     assert response.status_code == 200
     user.profile.refresh_from_db()
+    # O nome não duplica o prefixo da pasta (profile_pics/profile_pics/...).
+    assert user.profile.image.name.count("profile_pics/") == 1
     # Redimensionado para no máximo 400x400 pelo Profile.save().
     with user.profile.image.open("rb") as fh:
         img = Image.open(fh)
