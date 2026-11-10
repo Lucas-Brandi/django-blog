@@ -39,10 +39,13 @@ class Profile(models.Model):
             buffer = BytesIO()
             img.save(buffer, format=img_format)
 
-        # Regrava o mesmo nome com o conteúdo redimensionado.
-        self.image.storage.delete(self.image.name)
-        self.image.save(self.image.name, ContentFile(buffer.getvalue()), save=False)
-        super().save(update_fields=["image"])
+        # Regrava o conteúdo redimensionado direto no storage, mantendo o mesmo
+        # nome. Usa storage.delete/save (e não self.image.save) para não passar
+        # o nome pelo upload_to de novo, o que duplicaria o prefixo da pasta.
+        name = self.image.name
+        storage = self.image.storage
+        storage.delete(name)
+        storage.save(name, ContentFile(buffer.getvalue()))
 
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
