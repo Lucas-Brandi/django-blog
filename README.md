@@ -17,8 +17,8 @@ Aplicação web em **Python** com **Django**, com um blog e um sistema de contas
 
 ### Estado atual
 
-- A listagem da home usa uma lista fixa em `blog/views.py`. Os models `Post`, `Comment` e `Tag` existem e podem ser editados no admin, mas ainda não são lidos pelas views.
-- O backend renderiza páginas HTML com templates do Django e **também expõe uma API REST** (JSON) sob o prefixo `/api/v1/`, consumida pelo front React. A base da API (health check, CORS, paginação e formato de erro) já está no ar; os endpoints de dados chegam nas próximas milestones. As rotas HTML continuam funcionando.
+- A listagem da home (HTML) ainda usa uma lista fixa em `blog/views.py`. A API REST, porém, já lê e escreve `Post` de verdade (`/api/v1/posts/`). Os models `Comment` e `Tag` existem e podem ser editados no admin; seus endpoints chegam em M5/M6.
+- O backend renderiza páginas HTML com templates do Django e **também expõe uma API REST** (JSON) sob o prefixo `/api/v1/`, consumida pelo front React. A base da API (health check, CORS, paginação e formato de erro), a autenticação, o perfil e os posts já estão no ar; os demais endpoints de dados chegam nas próximas milestones. As rotas HTML continuam funcionando.
 - Os arquivos `tests.py` das apps ainda estão vazios.
 
 ---
@@ -190,12 +190,59 @@ O backend expõe uma API JSON sob o prefixo `/api/v1/`, pensada para o front Rea
 | `POST` | `/api/v1/auth/logout/` | Revoga o `refresh` informado (blacklist). Exige `Authorization: Bearer <access>` |
 | `POST` | `/api/v1/auth/password-reset/` | Envia e-mail de redefinição. Resposta igual exista ou não a conta. Com limite de requisições |
 | `POST` | `/api/v1/auth/password-reset/confirm/` | Redefine a senha com `uid` + `token` + `new_password`/`new_password2` |
+| `GET` | `/api/v1/posts/` | Lista os posts (paginado, mais recentes primeiro). Leitura pública. Busca opcional por `?search=` (título e conteúdo) |
+| `POST` | `/api/v1/posts/` | Cria um post (autenticado). O `author` vem do token, nunca do corpo |
+| `GET` | `/api/v1/posts/<id>/` | Detalhe de um post. Leitura pública |
+| `PUT` / `PATCH` | `/api/v1/posts/<id>/` | Atualiza um post. Só o autor (ou staff) |
+| `DELETE` | `/api/v1/posts/<id>/` | Remove um post. Só o autor (ou staff) |
 
 ### Autenticação (JWT)
 
 A API usa **JSON Web Tokens** (via `djangorestframework-simplejwt`). O login devolve um `access` (curta duração) e um `refresh` (longa duração). Envie o `access` no cabeçalho `Authorization: Bearer <access>` nas rotas protegidas. O `refresh` renova o `access` em `/api/v1/auth/refresh/`; a cada renovação o refresh antigo entra na _blacklist_ (`token_blacklist`), e o logout faz o mesmo — por isso um token revogado ou expirado é rejeitado com `401`.
 
 O e-mail de reset aponta para `${FRONTEND_URL}/password-reset/confirm/<uid>/<token>`. Em desenvolvimento o e-mail aparece no console (`docker compose logs backend`).
+
+### Posts
+
+Os posts expõem o model `Post` em JSON sob `/api/v1/posts/`.
+
+- **Leitura pública (decisão D2):** listar (`GET /posts/`) e ver o detalhe (`GET /posts/<id>/`) não exigem autenticação, espelhando o perfil público já disponível em M3.
+- **Escrita autenticada:** criar exige `Authorization: Bearer <access>`.
+- **Editar/excluir só o autor (ou staff):** um usuário autenticado que não é o autor recebe `403`.
+- **Autor pelo token:** o `author` é sempre definido a partir de `request.user`; um `author` enviado no corpo é ignorado.
+- **Ordenação e paginação:** a listagem vem dos mais recentes para os mais antigos e respeita a paginação de M1 (`DJANGO_API_PAGE_SIZE`, padrão `10`).
+- **Busca opcional:** `?search=` filtra por título e conteúdo (case-insensitive).
+
+Formato da resposta de um post:
+
+```json
+{
+  "id": 1,
+  "title": "Primeiro post",
+  "content": "Conteúdo do post",
+  "author": { "username": "alice", "image_url": "http://localhost:8000/media/profile_pics/default.jpg" },
+  "created_at": "2025-01-01T12:00:00Z",
+  "updated_at": "2025-01-01T12:00:00Z",
+  "tags": ["django"]
+}
+```
+
+As `tags` aparecem na resposta como lista de nomes; o gerenciamento de tags em si é escopo da milestone M5.
+
+#### Seed de posts de exemplo
+
+Para popular o banco com posts e facilitar o desenvolvimento do front:
+
+```bash
+python manage.py seed_posts            # ~5 posts de exemplo
+python manage.py seed_posts --count 20 # 20 posts
+python manage.py seed_posts --clear    # apaga os posts antes de semear
+
+# No Docker:
+docker compose exec backend python manage.py seed_posts
+```
+
+O comando cria um usuário de exemplo (`demo_author`, sem senha utilizável) e algumas tags, de forma idempotente; sem `--clear` ele apenas acrescenta posts.
 
 
 Características da base:
