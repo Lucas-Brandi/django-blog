@@ -206,7 +206,7 @@ O e-mail de reset aponta para `${FRONTEND_URL}/password-reset/confirm/<uid>/<tok
 
 Os posts expõem o model `Post` em JSON sob `/api/v1/posts/`.
 
-- **Leitura pública (decisão D2):** listar (`GET /posts/`) e ver o detalhe (`GET /posts/<id>/`) não exigem autenticação, espelhando o perfil público já disponível em M3.
+- **Leitura pública (decisão D2):** listar (`GET /posts/`) e ver o detalhe (`GET /posts/<id>/`) não exigem autenticação. O D2 vale para todo o conteúdo de leitura (posts, tags, comentários e a página Sobre); escrita, perfil e criação de posts exigem login. Veja a decisão no `AGENTS.md`.
 - **Escrita autenticada:** criar exige `Authorization: Bearer <access>`.
 - **Editar/excluir só o autor (ou staff):** um usuário autenticado que não é o autor recebe `403`.
 - **Autor pelo token:** o `author` é sempre definido a partir de `request.user`; um `author` enviado no corpo é ignorado.
