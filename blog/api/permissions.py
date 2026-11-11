@@ -23,3 +23,21 @@ class IsAuthorOrStaffOrReadOnly(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return True
         return obj.author_id == request.user.id or request.user.is_staff
+
+
+class CanDeleteComment(permissions.BasePermission):
+    """Excluir/editar um comentário: autor do comentário, autor do post ou staff (D5).
+
+    - Métodos seguros (GET, HEAD, OPTIONS): sempre permitidos.
+    - DELETE/edição: liberado ao autor do comentário, ao autor do post comentado
+      ou a um usuário staff.
+    """
+
+    def has_object_permission(self, request, view, comment):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return (
+            comment.author_id == request.user.id or comment.post.author_id == request.user.id or request.user.is_staff
+        )

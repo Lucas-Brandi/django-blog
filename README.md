@@ -184,6 +184,8 @@ O backend expõe uma API JSON sob o prefixo `/api/v1/`, pensada para o front Rea
 | Método | Rota | Descrição |
 |---|---|---|
 | `GET` | `/api/v1/health/` | Health check. Responde `200` com `{"status": "ok"}` |
+| `GET` | `/api/schema/` | Esquema OpenAPI 3 (YAML) gerado pelo `drf-spectacular` |
+| `GET` | `/api/docs/` | Swagger UI interativo a partir do esquema |
 | `POST` | `/api/v1/auth/register/` | Cadastro (`username`, `email`, `password`, `password2`). O `Profile` é criado pelo signal |
 | `POST` | `/api/v1/auth/login/` | Login. Retorna o par de tokens JWT (`access` + `refresh`). Com limite de requisições |
 | `POST` | `/api/v1/auth/refresh/` | Renova o `access` a partir do `refresh` (rotação + blacklist do refresh antigo) |
@@ -193,8 +195,15 @@ O backend expõe uma API JSON sob o prefixo `/api/v1/`, pensada para o front Rea
 | `GET` | `/api/v1/posts/` | Lista os posts (paginado, mais recentes primeiro). Leitura pública. Busca opcional por `?search=` (título e conteúdo) |
 | `POST` | `/api/v1/posts/` | Cria um post (autenticado). O `author` vem do token, nunca do corpo |
 | `GET` | `/api/v1/posts/<id>/` | Detalhe de um post. Leitura pública |
-| `PUT` / `PATCH` | `/api/v1/posts/<id>/` | Atualiza um post. Só o autor (ou staff) |
+| `PUT` / `PATCH` | `/api/v1/posts/<id>/` | Atualiza um post. Só o autor (ou staff). Aceita `tag_input` (nomes/ids) |
 | `DELETE` | `/api/v1/posts/<id>/` | Remove um post. Só o autor (ou staff) |
+| `GET` | `/api/v1/tags/` | Lista as tags com a contagem de posts (`post_count`). Leitura pública |
+| `POST` | `/api/v1/tags/` | Cria uma tag (autenticado). Nome único sem diferenciar maiúsculas/minúsculas |
+| `GET` | `/api/v1/posts/<id>/comments/` | Lista os comentários do post (cronológico, paginado). Exige login |
+| `POST` | `/api/v1/posts/<id>/comments/` | Comenta um post (autenticado). O `author` vem do token |
+| `GET` | `/api/v1/comments/<id>/` | Detalhe de um comentário. Exige login |
+| `PUT` / `PATCH` | `/api/v1/comments/<id>/` | Edita um comentário. Autor do comentário, autor do post ou staff |
+| `DELETE` | `/api/v1/comments/<id>/` | Remove um comentário. Autor do comentário, autor do post ou staff |
 
 ### Autenticação (JWT)
 
@@ -227,7 +236,35 @@ Formato da resposta de um post:
 }
 ```
 
-As `tags` aparecem na resposta como lista de nomes; o gerenciamento de tags em si é escopo da milestone M5.
+As `tags` aparecem na resposta como lista de nomes. O gerenciamento das tags (incluindo a associação na criação/edição do post) é descrito em **Tags**, abaixo.
+
+### Tags (M5)
+
+As tags têm relação muitos-para-muitos com os posts (um post pode ter várias tags; uma tag pode estar em vários posts).
+
+- **Listagem pública:** `GET /api/v1/tags/` traz cada tag com `post_count` (quantos posts a usam).
+- **Criação autenticada:** `POST /api/v1/tags/` com `{"name": "django"}`.
+- **Unicidade sem diferenciar maiúsculas/minúsculas:** os nomes são normalizados para minúsculas e o banco garante a unicidade pelo constraint `unique_tag_name_ci` (`Lower("name")`). Criar `"Django"` quando já existe `"django"` retorna `400`.
+- **Associar tags ao post:** envie `tag_input` no corpo ao criar/editar um post — uma lista de **nomes** e/ou **ids** (ex.: `["django", "rest"]` ou `[1, 2]`). Nomes inexistentes são criados sob demanda.
+- **Filtrar posts por tag:** `GET /api/v1/posts/?tag=<nome>` (case-insensitive) retorna só os posts da tag.
+
+### Comentários (M6)
+
+O model `Comment` tem `post`, `author` (FK para `User`), `content` e `created_at`.
+
+- **Login obrigatório (decisão D5):** listar e comentar exigem `Authorization: Bearer <access>`.
+- **Listagem:** `GET /api/v1/posts/<id>/comments/` em ordem cronológica (mais antigos primeiro) e paginada.
+- **Criar:** `POST /api/v1/posts/<id>/comments/` com `{"content": "..."}`. O `author` vem do token e o `post` vem da URL — ambos são ignorados se enviados no corpo.
+- **Excluir/editar:** `DELETE`/`PATCH /api/v1/comments/<id>/` são permitidos ao autor do comentário, ao autor do post comentado ou a um usuário staff; qualquer outro recebe `403`.
+
+### Documentação OpenAPI (M7)
+
+O esquema OpenAPI 3 é gerado pelo [`drf-spectacular`](https://drf-spectacular.readthedocs.io/):
+
+- `GET /api/schema/` — esquema cru (YAML).
+- `GET /api/docs/` — **Swagger UI** interativo (assets servidos localmente via `drf-spectacular-sidecar`, sem CDN).
+
+A autenticação JWT aparece no esquema como o security scheme `jwtAuth` (`type: http`, `scheme: bearer`, `bearerFormat: JWT`). No Swagger UI, use o botão **Authorize** e informe o `access` para testar as rotas protegidas. Todos os endpoints da API aparecem documentados, agrupados por tags (`auth`, `posts`, `tags`, `comments`, `users`, `infra`).
 
 #### Seed de posts de exemplo
 

@@ -4,6 +4,8 @@ Mantém o formato de erro consistente e os endpoints de infraestrutura
 (como o health check) usados pelo front React.
 """
 
+from drf_spectacular.utils import OpenApiExample, extend_schema, inline_serializer
+from rest_framework import serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -40,6 +42,17 @@ def exception_handler(exc, context):
     return response
 
 
+@extend_schema(
+    tags=["infra"],
+    summary="Health check",
+    responses={
+        200: inline_serializer(
+            name="HealthResponse",
+            fields={"status": serializers.CharField()},
+        )
+    },
+    examples=[OpenApiExample("OK", value={"status": "ok"}, response_only=True)],
+)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def health(request):

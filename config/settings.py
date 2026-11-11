@@ -65,6 +65,8 @@ INSTALLED_APPS = [
     "users.apps.UsersConfig",
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
+    "drf_spectacular",
+    "drf_spectacular_sidecar",
     "corsheaders",
     "django.contrib.admin",
     "django.contrib.auth",
@@ -276,6 +278,26 @@ REST_FRAMEWORK = {
         "login": os.environ.get("DJANGO_THROTTLE_LOGIN", "5/min"),
         "password_reset": os.environ.get("DJANGO_THROTTLE_PASSWORD_RESET", "5/min"),
     },
+    # Geração do schema OpenAPI (drf-spectacular) — M7.
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+# drf-spectacular (documentação OpenAPI) — M7
+# https://drf-spectacular.readthedocs.io/
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Django Blog API",
+    "DESCRIPTION": (
+        "API REST do blog: posts, tags, comentários, perfil de usuário e autenticação JWT. Consumida pelo front React."
+    ),
+    "VERSION": "1.0.0",
+    # O schema é servido separadamente em /api/schema/; não repetir na UI.
+    "SERVE_INCLUDE_SCHEMA": False,
+    # Serve os assets do Swagger/Redoc localmente (sidecar), sem depender de CDN.
+    "SWAGGER_UI_DIST": "SIDECAR",
+    "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
+    "REDOC_DIST": "SIDECAR",
+    # Autenticação JWT (Bearer) descrita no esquema.
+    "SECURITY": [{"jwtAuth": []}],
 }
 
 # Simple JWT
