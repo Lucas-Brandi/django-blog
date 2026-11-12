@@ -20,6 +20,13 @@ Antes de alterar qualquer coisa:
 
 Não presuma que um app, model, endpoint ou arquivo existe: confirme no repositório.
 
+### Decisões de projeto (D1, D2)
+
+Decisões transversais que travam várias milestones. Registre-as aqui para não depender de contexto externo.
+
+- **D1 — Autenticação da API:** JWT via `djangorestframework-simplejwt` (login, refresh e logout com blacklist). Resolvida em M2.
+- **D2 — Quem pode ler o conteúdo:** **leitura pública**. Posts, tags, comentários e a página Sobre são acessíveis sem login; **escrita, perfil e criação de posts exigem autenticação**. É o comportamento esperado de um blog, simplifica a avaliação do projeto e facilita testar a API. Afeta M4, M12 e M15. Em DRF, o padrão é `IsAuthenticatedOrReadOnly` na leitura/escrita e, para objetos, "só o autor (ou staff)" pode alterar/excluir.
+
 ## 2. Estrutura do projeto
 
 O `manage.py` e a pasta de configurações (`config/`) ficam na **raiz** do repositório — não há subpasta `django_project/`.
@@ -183,3 +190,5 @@ Na resposta final de cada tarefa, informe:
 7. Pendências, falhas preexistentes ou comandos que não puderam ser executados.
 
 Se uma regra deste documento conflitar com uma solicitação, não a ignore em silêncio: explique o conflito e peça confirmação antes de qualquer ação destrutiva ou irreversível.
+
+D2: leitura pública de posts, tags e comentários; escrita exige login.
