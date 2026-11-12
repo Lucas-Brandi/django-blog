@@ -9,8 +9,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+COPY requirements.txt requirements-dev.txt ./
+# Instala produção + ferramentas de dev (pytest/pytest-django) para que a
+# suíte rode no container via `docker compose exec backend pytest`.
+RUN pip install -r requirements-dev.txt
 
 COPY . .
 

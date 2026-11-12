@@ -69,7 +69,7 @@ python manage.py createsuperuser
 
 O `venv` precisa de **Python 3.12+** porque o Django 6.1 o exige. Se o `pip install` falhar com erro de versão, confirme o interpretador do `venv` antes de prosseguir. Não instale dependências globalmente no host para contornar isso.
 
-**Fluxo Docker (opcional).** O projeto também sobe via Docker Compose (Django + PostgreSQL). Quando a tarefa for sobre o ambiente Docker, use o padrão `docker compose exec backend python manage.py <comando>`. No container o `manage.py` fica em `/app/manage.py`.
+**Fluxo Docker (opcional).** O projeto também sobe via Docker Compose (Django + PostgreSQL). Quando a tarefa for sobre o ambiente Docker, use o padrão `docker compose exec backend python manage.py <comando>`. No container o `manage.py` fica em `/app/manage.py`. Para rodar os testes no container, o comando é `docker compose exec backend pytest` (ver seção 7).
 
 ## 4. Validação obrigatória antes de concluir
 
@@ -116,15 +116,26 @@ Regras:
 
 ## 7. Testes (pytest + pytest-django)
 
+**O comando de testes do projeto é `pytest`** (não `manage.py test`). A suíte é escrita em pytest/pytest-django; o `pytest` roda tanto funções-estilo-pytest quanto classes `APITestCase`.
+
 Configuração no `pyproject.toml`: `DJANGO_SETTINGS_MODULE = config.settings`, descoberta de `test_*.py` / `*_test.py` (além do `tests.py` de cada app), `testpaths = blog, users`.
+
+No host (venv ativo):
 
 ```powershell
 pytest                     # roda tudo
 pytest -q                  # saída resumida
-pytest blog/test_views.py  # arquivo específico
+pytest blog/test_api_posts.py  # arquivo específico
 ```
 
-- Ainda não há testes escritos; `pytest` coleta 0 testes por enquanto. Isso é esperado até os primeiros testes serem adicionados.
+No Docker, o comando oficial é:
+
+```powershell
+docker compose exec backend pytest
+```
+
+A imagem já instala `requirements-dev.txt` (inclui `pytest`/`pytest-django`), então **não** é preciso `pip install` em runtime. Isolamento de mídia: o `conftest.py` da raiz redireciona `MEDIA_ROOT` para um diretório temporário por teste, então uploads de teste não poluem `media/`.
+
 - Use o banco de testes gerenciado pelo pytest-django; nunca rode testes contra dados reais.
 - Testes devem ser determinísticos e independentes da ordem de execução. Faça mock de chamadas externas.
 - Para mudanças em models, signals, auth, views ou endpoints, inclua testes de regressão. Não enfraqueça testes só para a suíte passar.
