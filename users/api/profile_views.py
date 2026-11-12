@@ -8,6 +8,7 @@ Endpoints sob /api/v1/users/:
 
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -21,6 +22,7 @@ from .profile_serializers import ProfileSerializer, PublicProfileSerializer
 User = get_user_model()
 
 
+@extend_schema(tags=["users"])
 class MeView(APIView):
     """GET/PATCH /api/v1/users/me/ — lê e atualiza o próprio perfil.
 
@@ -36,11 +38,17 @@ class MeView(APIView):
         profile, _ = Profile.objects.get_or_create(user=request.user)
         return profile
 
+    @extend_schema(summary="Lê o próprio perfil", responses={200: ProfileSerializer})
     def get(self, request):
         profile = self._get_profile(request)
         serializer = ProfileSerializer(profile, context={"request": request})
         return Response(serializer.data)
 
+    @extend_schema(
+        summary="Atualiza o próprio perfil",
+        request=ProfileSerializer,
+        responses={200: ProfileSerializer},
+    )
     def patch(self, request):
         profile = self._get_profile(request)
         serializer = ProfileSerializer(
@@ -54,6 +62,11 @@ class MeView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(
+    tags=["users"],
+    summary="Restaura a imagem de perfil padrão",
+    responses={200: ProfileSerializer},
+)
 class MeImageView(APIView):
     """DELETE /api/v1/users/me/image/ — restaura a imagem de perfil padrão."""
 
@@ -71,6 +84,11 @@ class MeImageView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+@extend_schema(
+    tags=["users"],
+    summary="Perfil público de um usuário",
+    responses={200: PublicProfileSerializer},
+)
 class PublicProfileView(APIView):
     """GET /api/v1/users/<username>/ — perfil público (username, bio, imagem)."""
 

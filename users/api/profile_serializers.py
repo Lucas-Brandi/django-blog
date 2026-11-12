@@ -50,7 +50,7 @@ class ProfileSerializer(serializers.Serializer):
     image = serializers.ImageField(required=False, write_only=True)
     image_url = serializers.SerializerMethodField()
 
-    def get_image_url(self, profile):
+    def get_image_url(self, profile) -> str:
         """URL absoluta da imagem (serializer precisa de request no contexto)."""
         url = profile.image.url
         request = self.context.get("request")
@@ -114,6 +114,12 @@ class ProfileSerializer(serializers.Serializer):
 
 class PublicProfileSerializer(serializers.Serializer):
     """Perfil público (opcional): só username, bio e imagem."""
+
+    # Campos declarados para a documentação OpenAPI (M7). A montagem real da
+    # resposta continua em to_representation (inclui a URL absoluta da imagem).
+    username = serializers.CharField(read_only=True)
+    bio = serializers.CharField(read_only=True)
+    image_url = serializers.CharField(read_only=True)
 
     def to_representation(self, profile):
         url = profile.image.url

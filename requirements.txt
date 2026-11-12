@@ -3,6 +3,9 @@ Django~=6.1.3
 djangorestframework~=3.18.0
 djangorestframework-simplejwt~=5.5.0
 django-cors-headers~=4.9.0
+# Documentação OpenAPI (schema + Swagger UI). O extra [sidecar] serve os
+# assets do Swagger localmente, sem depender de CDN (funciona no Docker).
+drf-spectacular[sidecar]~=0.30.0
 Pillow~=13.0
 psycopg[binary]~=3.3
 # Armazenamento de mídia em produção (Cloudflare R2 via API S3).

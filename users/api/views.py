@@ -13,7 +13,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
-from rest_framework import status
+from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
+from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -22,8 +23,10 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .serializers import (
+    DetailResponseSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
+    RegisterResponseSerializer,
     RegisterSerializer,
     make_reset_token,
 )
@@ -35,6 +38,12 @@ User = get_user_model()
 _RESET_GENERIC_RESPONSE = {"detail": "Se o e-mail existir, enviaremos as instruções de redefinição."}
 
 
+@extend_schema(
+    tags=["auth"],
+    summary="Cadastro de usuário",
+    request=RegisterSerializer,
+    responses={201: RegisterResponseSerializer},
+)
 class RegisterView(APIView):
     """POST /api/v1/auth/register/ — cria um usuário (o Profile vem do signal)."""
 
@@ -50,6 +59,7 @@ class RegisterView(APIView):
         )
 
 
+@extend_schema(tags=["auth"], summary="Login (obtém o par de tokens JWT)")
 class LoginView(TokenObtainPairView):
     """POST /api/v1/auth/login/ — retorna o par de tokens. Throttle por IP."""
 
@@ -57,6 +67,15 @@ class LoginView(TokenObtainPairView):
     throttle_scope = "login"
 
 
+@extend_schema(
+    tags=["auth"],
+    summary="Logout (revoga o refresh token)",
+    request=inline_serializer(
+        name="LogoutRequest",
+        fields={"refresh": serializers.CharField()},
+    ),
+    responses={205: OpenApiResponse(description="Refresh token revogado (blacklist).")},
+)
 class LogoutView(APIView):
     """POST /api/v1/auth/logout/ — coloca o refresh token na blacklist."""
 
@@ -76,6 +95,12 @@ class LogoutView(APIView):
         return Response(status=status.HTTP_205_RESET_CONTENT)
 
 
+@extend_schema(
+    tags=["auth"],
+    summary="Solicita redefinição de senha",
+    request=PasswordResetRequestSerializer,
+    responses={200: DetailResponseSerializer},
+)
 class PasswordResetRequestView(APIView):
     """POST /api/v1/auth/password-reset/ — envia e-mail com o link do front."""
 
@@ -109,6 +134,12 @@ class PasswordResetRequestView(APIView):
         )
 
 
+@extend_schema(
+    tags=["auth"],
+    summary="Confirma a redefinição de senha",
+    request=PasswordResetConfirmSerializer,
+    responses={200: DetailResponseSerializer},
+)
 class PasswordResetConfirmView(APIView):
     """POST /api/v1/auth/password-reset/confirm/ — troca a senha via uid + token."""
 

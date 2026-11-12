@@ -104,3 +104,20 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 def make_reset_token(user):
     """Gera (uidb64, token) para o link de reset de senha."""
     return urlsafe_base64_encode(force_bytes(user.pk)), default_token_generator.make_token(user)
+
+
+# --- Serializers apenas de resposta (documentação OpenAPI / M7) --------------
+
+
+class RegisterResponseSerializer(serializers.Serializer):
+    """Resposta do cadastro: dados básicos do usuário criado."""
+
+    id = serializers.IntegerField()
+    username = serializers.CharField()
+    email = serializers.EmailField()
+
+
+class DetailResponseSerializer(serializers.Serializer):
+    """Resposta genérica com uma mensagem em `detail`."""
+
+    detail = serializers.CharField()
