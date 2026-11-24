@@ -1,6 +1,6 @@
-# Django Blog & User System
+# Django Blog API & User System
 
-Aplicação web em **Python** com **Django**, com um blog e um sistema de contas de usuário (cadastro, login, logout, perfil com foto e recuperação de senha por e-mail).
+Backend em **Python** com **Django**, servido **exclusivamente como API REST (JSON)** sob o prefixo `/api/v1/`, mais o Django Admin. Cobre um blog (posts, tags, comentários) e um sistema de contas de usuário (cadastro, login/logout JWT, perfil com foto e recuperação de senha por e-mail). O front é uma aplicação independente que consome a API.
 
 ![Python](https://img.shields.io/badge/Python-3.12%2B-blue)
 ![Django](https://img.shields.io/badge/Django-6.1-092E20?logo=django)
@@ -9,17 +9,17 @@ Aplicação web em **Python** com **Django**, com um blog e um sistema de contas
 
 ## Funcionalidades
 
-- Página inicial e página "About" do blog (acesso restrito a usuários logados)
-- Cadastro, login e logout
+- API REST de posts, tags e comentários (leitura pública; escrita autenticada)
+- Cadastro, login, refresh e logout via JWT
 - Perfil do usuário com edição de e-mail, bio e foto (a imagem é reduzida para no máximo 400×400)
 - Recuperação de senha por e-mail (em desenvolvimento, o e-mail aparece no console)
 - Painel administrativo do Django com `Post`, `Comment`, `Tag` e `Profile`
+- Documentação OpenAPI (schema + Swagger UI)
 
 ### Estado atual
 
-- A listagem da home (HTML) ainda usa uma lista fixa em `blog/views.py`. A API REST, porém, já lê e escreve `Post` de verdade (`/api/v1/posts/`). Os models `Comment` e `Tag` existem e podem ser editados no admin; seus endpoints chegam em M5/M6.
-- O backend renderiza páginas HTML com templates do Django e **também expõe uma API REST** (JSON) sob o prefixo `/api/v1/`, consumida pelo front React. A base da API (health check, CORS, paginação e formato de erro), a autenticação, o perfil e os posts já estão no ar; os demais endpoints de dados chegam nas próximas milestones. As rotas HTML continuam funcionando.
-- Os arquivos `tests.py` das apps ainda estão vazios.
+- O backend é **só API REST + Django Admin**. As páginas HTML, os formulários e as rotas HTML foram removidos em M9; o front é uma aplicação independente que consome `/api/v1/`.
+- O Django continua servindo `/admin/` e, em desenvolvimento (`DEBUG=True`), os uploads em `/media/`.
 
 ---
 
@@ -65,16 +65,15 @@ django-blog/
 │   └── wsgi.py
 ├── blog/                        # app do blog
 │   ├── migrations/
-│   ├── templates/blog/
+│   ├── api/                     # serializers, views e rotas da API
 │   ├── models.py                # Post, Comment, Tag
-│   ├── views.py
-│   └── urls.py
+│   └── admin.py
 ├── users/                       # app de usuários
 │   ├── migrations/
-│   ├── templates/users/
-│   ├── forms.py
+│   ├── api/                     # serializers, views e rotas da API (auth, perfil)
+│   ├── templates/users/api/     # template .txt do e-mail de reset (usado pela API)
 │   ├── models.py                # Profile (1-para-1 com User)
-│   └── views.py
+│   └── admin.py
 └── media/
     └── profile_pics/
         └── default.jpg          # imagem padrão do perfil (obrigatória)
@@ -103,7 +102,8 @@ docker compose exec backend python manage.py createsuperuser
 
 | Recurso | URL |
 |---|---|
-| Aplicação | http://localhost:8000/ |
+| API | http://localhost:8000/api/v1/ |
+| Swagger UI | http://localhost:8000/api/docs/ |
 | Admin | http://localhost:8000/admin/ |
 
 Comandos úteis:
@@ -112,7 +112,7 @@ Comandos úteis:
 docker compose up -d                                   # segundo plano
 docker compose logs -f backend                         # logs (e-mails de reset aparecem aqui)
 docker compose exec backend python manage.py migrate   # aplicar migrações
-docker compose exec backend python manage.py test      # rodar testes
+docker compose exec backend pytest                     # rodar testes
 docker compose exec backend python manage.py shell     # shell do Django
 docker compose stop                                    # parar
 docker compose down                                    # parar e remover containers
@@ -295,7 +295,7 @@ curl http://localhost:8000/api/v1/health/
 # {"status": "ok"}
 ```
 
-As rotas HTML atuais continuam funcionando normalmente; a API é adicional.
+O backend expõe apenas a API REST e o `/admin/`; não há páginas HTML.
 
 ---
 
@@ -325,13 +325,7 @@ O Ruff ignora as pastas `venv` e as `migrations` e organiza os imports (isort) a
 pytest
 ```
 
-O `pytest-django` usa `DJANGO_SETTINGS_MODULE = config.settings` e descobre arquivos nos formatos `test_*.py` e `*_test.py` (além do `tests.py` de cada app). Ainda não há testes escritos nas apps `blog` e `users`, então o `pytest` coleta 0 testes por enquanto.
-
-O comando nativo do Django também continua funcionando:
-
-```bash
-python manage.py test
-```
+O `pytest-django` usa `DJANGO_SETTINGS_MODULE = config.settings` e descobre arquivos nos formatos `test_*.py` e `*_test.py` (além do `tests.py` de cada app). A suíte cobre a API (posts, tags, comentários, autenticação, perfil e documentação) e os signals do `Profile`.
 
 ---
 
