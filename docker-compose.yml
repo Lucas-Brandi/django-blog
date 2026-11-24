@@ -26,6 +26,8 @@ services:
       DJANGO_DEBUG: ${DJANGO_DEBUG:-true}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,[::1]}
       DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-}
+      DJANGO_SECURE_SSL_REDIRECT: ${DJANGO_SECURE_SSL_REDIRECT:-false}
+      DJANGO_SECURE_HSTS_SECONDS: ${DJANGO_SECURE_HSTS_SECONDS:-0}
       DJANGO_CORS_ALLOWED_ORIGINS: ${DJANGO_CORS_ALLOWED_ORIGINS:-http://localhost:5173}
       DJANGO_API_PAGE_SIZE: ${DJANGO_API_PAGE_SIZE:-10}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
@@ -43,6 +45,9 @@ services:
       R2_ENDPOINT_URL: ${R2_ENDPOINT_URL:-}
       R2_CUSTOM_DOMAIN: ${R2_CUSTOM_DOMAIN:-}
       R2_REGION: ${R2_REGION:-auto}
+      # Banco gerenciado (Neon). Tem prioridade sobre POSTGRES_HOST quando
+      # definida; deixe vazia para usar o Postgres local do Compose.
+      DATABASE_URL: ${DATABASE_URL:-}
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"
       POSTGRES_DB: ${POSTGRES_DB:-blog}

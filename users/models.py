@@ -22,7 +22,20 @@ class Profile(models.Model):
         return f"{self.user.username} Profile"
 
     def save(self, *args, **kwargs):
+        # Captura o arquivo anterior antes de gravar, para apagá-lo quando o
+        # usuário troca a foto. Evita acumular arquivos órfãos no storage (R2).
+        old_image_name = None
+        if self.pk:
+            old = type(self).objects.filter(pk=self.pk).values_list("image", flat=True).first()
+            if old and old != DEFAULT_IMAGE:
+                old_image_name = old
+
         super().save(*args, **kwargs)
+
+        # A foto mudou: remove a antiga do storage (nunca a imagem padrão).
+        if old_image_name and old_image_name != self.image.name:
+            self.image.storage.delete(old_image_name)
+
         # Downscale large uploads so the site never serves oversized images.
         # Lê e grava via Storage API (self.image.open/save) para funcionar tanto
         # no filesystem local quanto em storages remotos (Cloudflare R2), que não

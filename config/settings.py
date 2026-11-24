@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 import os
+import urllib.parse
 from datetime import timedelta
 from pathlib import Path
 
@@ -32,6 +33,17 @@ def env_list(name, default=""):
     """Lê uma lista separada por vírgulas (ignora itens vazios)."""
     value = os.environ.get(name) or default
     return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def env_int(name, default):
+    """Lê uma variável de ambiente inteira (usa o padrão se ausente/inválida)."""
+    value = os.environ.get(name)
+    if value is None or value.strip() == "":
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
 
 
 # Quick-start development settings - unsuitable for production
@@ -56,6 +68,25 @@ CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 # Origens autorizadas a consumir a API via navegador (CORS). O front React
 # roda por padrão em http://localhost:5173 (Vite).
 CORS_ALLOWED_ORIGINS = env_list("DJANGO_CORS_ALLOWED_ORIGINS", "http://localhost:5173")
+
+# Produção atrás de um proxy HTTPS (ex.: Vercel). O proxy encerra o TLS e
+# encaminha a requisição ao Django por HTTP, então o Django precisa confiar no
+# cabeçalho X-Forwarded-Proto para saber que a conexão original era HTTPS.
+# Também marca os cookies de sessão e CSRF como Secure. Tudo só fora de DEBUG,
+# para não quebrar o desenvolvimento local em HTTP.
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    # Opcionais, desligados por padrão. Na Vercel o proxy já serve só HTTPS, então
+    # o redirect do Django é redundante (e pode causar loop atrás do proxy); o
+    # HSTS deve ser ativado com cautela (ver docs do Django). Habilite via env
+    # quando quiser: DJANGO_SECURE_SSL_REDIRECT=true, DJANGO_SECURE_HSTS_SECONDS=31536000.
+    SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", False)
+    SECURE_HSTS_SECONDS = env_int("DJANGO_SECURE_HSTS_SECONDS", 0)
+    if SECURE_HSTS_SECONDS:
+        SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", True)
+        SECURE_HSTS_PRELOAD = env_bool("DJANGO_SECURE_HSTS_PRELOAD", True)
 
 
 # Application definition
@@ -113,10 +144,33 @@ WSGI_APPLICATION = "config.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 #
-# Com POSTGRES_HOST definido (ex.: via Docker Compose) usa PostgreSQL;
-# caso contrário, continua usando o SQLite local (db.sqlite3).
+# Prioridade (ordem importa):
+#   1. DATABASE_URL -> Postgres gerenciado (Neon) em produção. Tem prioridade
+#      para permitir apontar um comando local (migrate, loaddata) ao Neon sem
+#      alterar o .env.
+#   2. POSTGRES_HOST -> Postgres local (Docker Compose).
+#   3. caso contrário -> SQLite local (db.sqlite3).
 
-if os.environ.get("POSTGRES_HOST"):
+if os.environ.get("DATABASE_URL"):
+    # Neon via pooler (modo transação): desligar cursores do lado do servidor e
+    # não reaproveitar conexões que o Neon fecha após inatividade.
+    _db_url = urllib.parse.urlparse(os.environ["DATABASE_URL"])
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": _db_url.path.lstrip("/"),
+            "USER": urllib.parse.unquote(_db_url.username or ""),
+            "PASSWORD": urllib.parse.unquote(_db_url.password or ""),
+            "HOST": _db_url.hostname,
+            "PORT": _db_url.port or 5432,
+            "OPTIONS": {"sslmode": "require", "connect_timeout": 10},
+            # Necessário com o pooler do Neon (cursores do lado do servidor).
+            "DISABLE_SERVER_SIDE_CURSORS": True,
+            # Fecha a conexão ao fim de cada requisição (serverless + Neon).
+            "CONN_MAX_AGE": 0,
+        }
+    }
+elif os.environ.get("POSTGRES_HOST"):
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -239,17 +293,6 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173").rstrip("/
 
 # Django REST Framework
 # https://www.django-rest-framework.org/api-guide/settings/
-
-
-def env_int(name, default):
-    """Lê uma variável de ambiente inteira (usa o padrão se ausente/inválida)."""
-    value = os.environ.get(name)
-    if value is None or value.strip() == "":
-        return default
-    try:
-        return int(value)
-    except ValueError:
-        return default
 
 
 # Limite de tamanho (bytes) para a imagem de perfil enviada pela API.
