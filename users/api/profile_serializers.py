@@ -10,6 +10,7 @@ from django.contrib.auth import get_user_model
 from PIL import Image, UnidentifiedImageError
 from rest_framework import serializers
 
+from users.api.serializers import validate_unique_email
 from users.models import DEFAULT_IMAGE
 
 User = get_user_model()
@@ -67,12 +68,10 @@ class ProfileSerializer(serializers.Serializer):
         return value
 
     def validate_email(self, value):
-        qs = User.objects.filter(email__iexact=value)
-        if self.instance is not None:
-            qs = qs.exclude(pk=self.instance.user_id)
-        if qs.exists():
-            raise serializers.ValidationError("Este e-mail já está em uso.")
-        return value
+        # Validador compartilhado com o cadastro (users.api.serializers):
+        # strip, minúsculas, unicidade iexact e, na edição, ignora o próprio usuário.
+        instance_user = self.instance.user if self.instance is not None else None
+        return validate_unique_email(value, instance_user=instance_user)
 
     def validate_image(self, value):
         return _validate_image_file(value)

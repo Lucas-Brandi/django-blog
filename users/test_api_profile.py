@@ -136,6 +136,17 @@ def test_me_rejects_duplicate_email(auth_client, user, other_user):
     assert "email" in response.data["error"]["detail"]
 
 
+def test_me_rejects_another_users_email_case_insensitive(auth_client, user, other_user):
+    """Editar o perfil com o e-mail de outro usuário é recusado mesmo com maiúsculas."""
+    response = auth_client.patch(
+        reverse("api-v1:users:me"),
+        {"email": "BOB@EXAMPLE.COM"},
+        format="json",
+    )
+    assert response.status_code == 400
+    assert "email" in response.data["error"]["detail"]
+
+
 def test_me_rejects_invalid_email(auth_client, user):
     response = auth_client.patch(
         reverse("api-v1:users:me"),

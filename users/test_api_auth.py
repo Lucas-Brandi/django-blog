@@ -41,11 +41,74 @@ def test_register_creates_user_and_single_profile(client):
     response = client.post(url, payload, format="json")
 
     assert response.status_code == 201
-    assert response.data["username"] == "bob"
+    # Login automático: o cadastro devolve o usuário e o par de tokens.
+    assert response.data["user"]["username"] == "bob"
+    assert response.data["user"]["email"] == "bob@example.com"
+    assert "id" in response.data["user"]
+    assert "access" in response.data
+    assert "refresh" in response.data
     assert "password" not in response.data
     created = User.objects.get(username="bob")
     # O signal cria exatamente um Profile, sem duplicar.
     assert Profile.objects.filter(user=created).count() == 1
+
+
+def test_register_tokens_authenticate_immediately(client):
+    """Os tokens devolvidos pelo cadastro já autenticam o usuário (login automático)."""
+    register = client.post(
+        reverse("api-v1:auth:register"),
+        {
+            "username": "bob",
+            "email": "bob@example.com",
+            "password": "Str0ngPass!99",
+            "password2": "Str0ngPass!99",
+        },
+        format="json",
+    )
+    assert register.status_code == 201
+    access = register.data["access"]
+    refresh = register.data["refresh"]
+
+    # O access token acessa um endpoint autenticado sem novo login.
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+    me = client.get(reverse("api-v1:users:me"))
+    assert me.status_code == 200
+    assert me.data["username"] == "bob"
+
+    # O refresh token também é válido (mesmo formato do login).
+    client.credentials()
+    refreshed = client.post(reverse("api-v1:auth:refresh"), {"refresh": refresh}, format="json")
+    assert refreshed.status_code == 200
+    assert "access" in refreshed.data
+
+
+def test_register_rejects_duplicate_email(client, user):
+    """E-mail repetido é recusado no cadastro (inclusive com maiúsculas)."""
+    url = reverse("api-v1:auth:register")
+    payload = {
+        "username": "bob",
+        "email": "ALICE@EXAMPLE.COM",  # mesmo e-mail de `user`, em maiúsculas
+        "password": "Str0ngPass!99",
+        "password2": "Str0ngPass!99",
+    }
+    response = client.post(url, payload, format="json")
+    assert response.status_code == 400
+    assert "email" in response.data["error"]["detail"]
+
+
+def test_register_normalizes_email_to_lowercase(client):
+    """O e-mail é gravado normalizado (strip + minúsculas)."""
+    url = reverse("api-v1:auth:register")
+    payload = {
+        "username": "bob",
+        "email": "  Bob@Example.COM ",
+        "password": "Str0ngPass!99",
+        "password2": "Str0ngPass!99",
+    }
+    response = client.post(url, payload, format="json")
+    assert response.status_code == 201
+    created = User.objects.get(username="bob")
+    assert created.email == "bob@example.com"
 
 
 def test_register_requires_matching_passwords(client):
