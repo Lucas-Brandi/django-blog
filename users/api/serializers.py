@@ -17,6 +17,24 @@ from rest_framework import serializers
 User = get_user_model()
 
 
+def validate_unique_email(value, *, instance_user=None):
+    """Normaliza e garante a unicidade do e-mail (compartilhado por register e perfil).
+
+    - Faz strip e lower (e-mail é tratado sem diferenciar maiúsculas).
+    - Rejeita se já existir outro usuário com o mesmo e-mail (comparação iexact).
+    - Na edição, ignora o próprio usuário via `instance_user`.
+
+    Retorna o e-mail normalizado (strip + lower) para ser gravado.
+    """
+    normalized = value.strip().lower()
+    qs = User.objects.filter(email__iexact=normalized)
+    if instance_user is not None:
+        qs = qs.exclude(pk=instance_user.pk)
+    if qs.exists():
+        raise serializers.ValidationError("Este e-mail já está em uso.")
+    return normalized
+
+
 class RegisterSerializer(serializers.ModelSerializer):
     """Cadastro de usuário: username, email (obrigatório) e senha + confirmação."""
 
@@ -32,6 +50,11 @@ class RegisterSerializer(serializers.ModelSerializer):
         # Aplica os AUTH_PASSWORD_VALIDATORS do Django. A similaridade com os
         # atributos do usuário é checada em validate(), onde já temos username/email.
         return value
+
+    def validate_email(self, value):
+        # Validador compartilhado com o perfil: strip, minúsculas e unicidade
+        # sem diferenciar maiúsculas. Retorna o e-mail normalizado para gravar.
+        return validate_unique_email(value)
 
     def validate(self, attrs):
         if attrs["password"] != attrs["password2"]:
@@ -109,12 +132,20 @@ def make_reset_token(user):
 # --- Serializers apenas de resposta (documentação OpenAPI / M7) --------------
 
 
-class RegisterResponseSerializer(serializers.Serializer):
-    """Resposta do cadastro: dados básicos do usuário criado."""
+class RegisterUserSerializer(serializers.Serializer):
+    """Dados básicos do usuário retornados no cadastro/login automático."""
 
     id = serializers.IntegerField()
     username = serializers.CharField()
     email = serializers.EmailField()
+
+
+class RegisterResponseSerializer(serializers.Serializer):
+    """Resposta do cadastro: par de tokens JWT (login automático) + usuário."""
+
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+    user = RegisterUserSerializer()
 
 
 class DetailResponseSerializer(serializers.Serializer):

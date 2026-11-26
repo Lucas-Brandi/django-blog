@@ -40,12 +40,17 @@ _RESET_GENERIC_RESPONSE = {"detail": "Se o e-mail existir, enviaremos as instru�
 
 @extend_schema(
     tags=["auth"],
-    summary="Cadastro de usuário",
+    summary="Cadastro de usuário (com login automático)",
     request=RegisterSerializer,
     responses={201: RegisterResponseSerializer},
 )
 class RegisterView(APIView):
-    """POST /api/v1/auth/register/ — cria um usuário (o Profile vem do signal)."""
+    """POST /api/v1/auth/register/ — cria um usuário e já o autentica.
+
+    Devolve o par de tokens JWT no mesmo formato do login (access + refresh,
+    no corpo da resposta — o login não grava cookie), junto com os dados
+    básicos do usuário. O Profile continua vindo do signal.
+    """
 
     permission_classes = [AllowAny]
 
@@ -53,8 +58,15 @@ class RegisterView(APIView):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+
+        # Login automático: mesmo par de tokens que o endpoint de login retorna.
+        refresh = RefreshToken.for_user(user)
         return Response(
-            {"id": user.id, "username": user.username, "email": user.email},
+            {
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "user": {"id": user.id, "username": user.username, "email": user.email},
+            },
             status=status.HTTP_201_CREATED,
         )
 
